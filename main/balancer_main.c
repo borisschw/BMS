@@ -14,6 +14,8 @@
 #include "sdkconfig.h"
 #include "esp_log.h"
 #include "bq79606.h"
+#include "i2c_interface.h"
+#include "max1726x.h"
 /**
  * This is an example which echos any data it receives on configured UART back to the sender,
  * with hardware flow control turned off. It does not use UART driver event queue.
@@ -39,6 +41,7 @@ int UART_RX_RDY = 0;
 
 #define BUF_SIZE (1024)
 
+
 static void echo_task(void *arg)
 {
     /* Configure parameters of an UART driver,
@@ -54,6 +57,8 @@ static void echo_task(void *arg)
 
     int intr_alloc_flags = 0;
     int i = 0;
+
+    uint8_t data[2];
     uint8_t led_state = 0;
     BYTE response_frame[(MAXBYTES+6)*TOTALBOARDS];
 
@@ -78,6 +83,31 @@ static void echo_task(void *arg)
 
 	balancer_wake();
 	memset(response_frame, 0, sizeof(response_frame));
+	i2c_master_init();
+
+	while(1)
+	{
+		gpio_set_level(LED_GPIO, led_state);
+		led_state = ~led_state;
+		if(maxim_max1726x_check_por())
+			printf("Power on reset\n");
+		else
+			printf("No power on reset\n");
+
+		printf("dev name = 0x%x \n", maxim_max1726x_get_devname());
+
+		maxim_max1726x_wait_dnr();
+
+		maxim_max1726x_initialize_ez_config();
+		//maxim_max1726x_initialize_full_ini();
+		if (maxim_max1726x_clear_por())
+			printf("Readback error!! \n");
+		else
+			printf("Readback Success! \n");
+
+
+		vTaskDelay(100 / portTICK_PERIOD_MS);
+	}
 
 	InitDevices();
 
@@ -150,8 +180,6 @@ static void echo_task(void *arg)
 
     }
 }
-
-
 
 void app_main(void)
 {
