@@ -289,9 +289,9 @@ extern max1726x_learned_parameters_t max1726x_learned_parameters;
  *
  * @param      Register address (1 byte).
  * @param      Register value (2 byte).
- * @retval     void.
+ * @retval     0 on success; -1 on error.
  */
-void maxim_max1726x_write_reg(uint8_t reg_addr, uint16_t *reg_data);
+int maxim_max1726x_write_reg(uint8_t reg_addr, uint16_t *reg_data);
 
 /****************************************************************************/
 /**
@@ -299,9 +299,9 @@ void maxim_max1726x_write_reg(uint8_t reg_addr, uint16_t *reg_data);
  *
  * @param      Register address (1 byte).
  * @param      Register value (2 byte).
- * @retval     void.
+ * @retval     0 on success, -1 on error.
  */
-void maxim_max1726x_read_reg(uint8_t reg_addr, uint16_t *reg_data);
+int maxim_max1726x_read_reg(uint8_t reg_addr, uint16_t *reg_data);
 
 /****************************************************************************/
 /**
@@ -463,13 +463,16 @@ void maxim_max1726x_lock_model_data(void);
  */
 uint8_t maxim_max1726x_verify_model_data_locked(void);
 
-// ###################Custom Functions################################################
+
+
+
+// #############################Custom Functions############################################################
 
 /*
  *
  */
-uint16_t maxim_max1726x_get_devname(void);
 
+uint16_t maxim_max1726x_get_register(uint8_t register_number);
 
 
 

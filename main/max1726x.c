@@ -58,7 +58,7 @@ max1726x_learned_parameters_t max1726x_learned_parameters;
 /**** Functions ****/
 
 /* ************************************************************************* */
-void maxim_max1726x_write_reg(uint8_t reg_addr, uint16_t *reg_data)
+int maxim_max1726x_write_reg(uint8_t reg_addr, uint16_t *reg_data)
 {
 	uint8_t i2c_data[3];
 
@@ -66,29 +66,16 @@ void maxim_max1726x_write_reg(uint8_t reg_addr, uint16_t *reg_data)
 	i2c_data[1] = (*reg_data) & 0xFF;
 	i2c_data[2] = (*reg_data) >> 8;
 
-	i2c_master_write_slave(I2C_MASTER_NUM, MAX1726X_I2C_ADDR, i2c_data, 3);
+	return i2c_master_write_slave(I2C_MASTER_NUM, MAX1726X_I2C_ADDR, i2c_data, 3);
 
 	//maxim_max32660_i2c1_write(MAX1726X_I2C_ADDR, i2c_data, 3, 0);
 
 }
 
 /* ************************************************************************* */
-void maxim_max1726x_read_reg(uint8_t reg_addr, uint16_t *reg_data)
+int maxim_max1726x_read_reg(uint8_t reg_addr, uint16_t *reg_data)
 {
-	//uint8_t i2c_data[2]={0};
-
-	//i2c_data[0] = reg_addr;
-
-	//i2c_master_read_slave(I2C_MASTER_NUM, i2c_data,2);
-	i2c_master_write_read_device(I2C_MASTER_NUM, MAX1726X_I2C_ADDR, &reg_addr, 1, reg_data, 1, I2C_MASTER_TIMEOUT_MS / portTICK_RATE_MS);
-
-	//printf("i2c_data[0] = 0x%x, i2c_data[1] = 0x%x\n", i2c_data[0], i2c_data[1]);
-	//maxim_max32660_i2c1_write(MAX1726X_I2C_ADDR, i2c_data, 1, 1);
-
-	//maxim_max32660_i2c1_read(MAX1726X_I2C_ADDR, i2c_data, 2, 0);
-
-	//*reg_data = i2c_data[1];
-	//*reg_data = ((*reg_data)<<8) | i2c_data[0];
+	return i2c_master_write_read_device(I2C_MASTER_NUM, MAX1726X_I2C_ADDR, &reg_addr, 1, reg_data, 1, I2C_MASTER_TIMEOUT_MS / portTICK_RATE_MS);
 }
 
 /* ************************************************************************* */
@@ -167,10 +154,16 @@ void maxim_max1726x_initialize_ez_config(void)
 
 	/// customer must provide the battery parameters accordingly
 	/// here the values are default for two serials of 18650 bat
-	max1726x_ez_config.designcap  = 0x1388;
+	max1726x_ez_config.designcap  = 0x6d60;
 	max1726x_ez_config.ichgterm   = 0x0780;
 	max1726x_ez_config.modelcfg   = 0x8400;
+
+	/*
+	 * VR (bits 6:0 with 40mV resolution) = 3.88V
+	 * VE (bits 15:7 10mV resolution) = 3.3V
+	 */
 	max1726x_ez_config.vempty     = 0xA561;
+
 	/// customer must provide the battery parameters accordingly
 
 
@@ -683,16 +676,27 @@ uint8_t maxim_max1726x_verify_model_data_locked(void)
  * Custom Functions
  */
 
-uint16_t maxim_max1726x_get_devname(void)
+//uint16_t maxim_max1726x_get_devname(void)
+//{
+//	uint16_t dev_name;
+//	uint8_t reg_addr = MAX1726X_DEVNAME_REG;
+//	i2c_master_write_read_device(I2C_MASTER_NUM, MAX1726X_I2C_ADDR, &reg_addr, 1, &max1726x_regs[reg_addr], 1, I2C_MASTER_TIMEOUT_MS / portTICK_RATE_MS);
+//	dev_name = (uint16_t)max1726x_regs[reg_addr];
+//	return dev_name;
+//}
+//
+
+
+uint16_t maxim_max1726x_get_register(uint8_t register_number)
 {
 	uint16_t dev_name;
-	uint8_t reg_addr = 0x21;
-
-	i2c_master_write_read_device(I2C_MASTER_NUM, MAX1726X_I2C_ADDR, &reg_addr, 1, &max1726x_regs[MAX1726X_DEVNAME_REG], 1, I2C_MASTER_TIMEOUT_MS / portTICK_RATE_MS);
-
-	dev_name = (uint16_t)max1726x_regs[MAX1726X_DEVNAME_REG];
+	i2c_master_write_read_device(I2C_MASTER_NUM, MAX1726X_I2C_ADDR, &register_number, 1, &max1726x_regs[register_number], 1, I2C_MASTER_TIMEOUT_MS / portTICK_RATE_MS);
+	dev_name = (uint16_t)max1726x_regs[register_number];
 	return dev_name;
 }
+
+//void print_reg
+
 
 
 

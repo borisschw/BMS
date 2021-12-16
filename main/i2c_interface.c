@@ -53,13 +53,36 @@ int i2c_master_init(void)
 
 int i2c_master_write_slave(i2c_port_t i2c_num, uint8_t device_address, uint8_t *data_wr, size_t size)
 {
+	esp_err_t ret = ESP_OK;
+
     i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-    i2c_master_start(cmd);
-    i2c_master_write_byte(cmd, (device_address << 1) | WRITE_BIT, ACK_CHECK_EN);
-    i2c_master_write(cmd, data_wr, size, ACK_CHECK_EN);
-    i2c_master_stop(cmd);
-    esp_err_t ret = i2c_master_cmd_begin(i2c_num, cmd, 1000 / portTICK_RATE_MS);
+    ret = i2c_master_start(cmd);
+    if (ret) return -1;
+
+    ret = i2c_master_write_byte(cmd, (device_address << 1) | WRITE_BIT, ACK_CHECK_EN);
+    if (ret) {
+    	i2c_cmd_link_delete(cmd);
+    	return -1;
+    }
+
+    ret = i2c_master_write(cmd, data_wr, size, ACK_CHECK_EN);
+    if (ret) {
+        	i2c_cmd_link_delete(cmd);
+        	return -1;
+        }
+    ret = i2c_master_stop(cmd);
+    if (ret) {
+        	i2c_cmd_link_delete(cmd);
+        	return -1;
+        }
+    ret = i2c_master_cmd_begin(i2c_num, cmd, 1000 / portTICK_RATE_MS);
+    if (ret) {
+        	i2c_cmd_link_delete(cmd);
+        	return -1;
+        }
+
     i2c_cmd_link_delete(cmd);
+
     return ret;
 }
 

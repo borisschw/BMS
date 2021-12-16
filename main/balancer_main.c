@@ -27,6 +27,14 @@
  * - Event queue: off
  * - Pin assignment: see defines below (See Kconfig)
  */
+typedef enum {
+	ez_config = 0,
+	full_ini = 1,
+	short_ini=2
+}INIT_METHOD;
+
+xSemaphoreHandle xBinSema;
+
 
 #define ECHO_TEST_TXD (CONFIG_EXAMPLE_UART_TXD)
 #define ECHO_TEST_RXD (CONFIG_EXAMPLE_UART_RXD)
@@ -35,14 +43,70 @@
 
 int UART_RX_RDY = 0;
 
-
-
-//static const char *TAG = "UART TEST";
-
 #define BUF_SIZE (1024)
 
+int init_fule_gauge(INIT_METHOD init)
+{
+	int ret = 0;
 
-static void echo_task(void *arg)
+	if(maxim_max1726x_check_por())
+	{
+		ret = 0;
+		printf("Power on reset\n");
+	}
+	else
+	{
+		ret = -1;
+		printf("No power on reset\n");
+	}
+
+	printf("dev name = 0x%x \n", maxim_max1726x_get_register(MAX1726X_DEVNAME_REG));
+
+	maxim_max1726x_wait_dnr();
+
+	switch(init)
+	{
+	case ez_config:
+		maxim_max1726x_initialize_ez_config();
+		break;
+	case full_ini:
+		maxim_max1726x_initialize_full_ini();
+		break;
+	case short_ini:
+		maxim_max1726x_initialize_short_ini();
+		break;
+	}
+
+	if (maxim_max1726x_clear_por())
+		printf("Readback error!! \n");
+	else
+		printf("Readback Success! \n");
+
+	return ret;
+}
+
+static void fule_gauge_task(void *arg)
+{
+	i2c_master_init();
+
+	init_fule_gauge(ez_config);
+
+	while(1)
+	{
+
+		printf("Vcell voltage = %f\n",maxim_max1726x_get_register(MAX1726X_VCELL_REG)/2.5 );
+		printf("Dev name = 0x%x\n",maxim_max1726x_get_register(MAX1726X_DEVNAME_REG) );
+		printf("Tesmp = 0x%x\n",maxim_max1726x_get_register(MAX1726X_TEMP_REG) );
+		printf("state-of-charge percentage = %d \n",maxim_max1726x_get_register(MAX1726X_REPSOC_REG));
+		printf("remaining capacity in mAh = %d \n",maxim_max1726x_get_register(MAX1726X_REPCAP_REG));
+
+		printf("\n\n");
+		vTaskDelay(1000 / portTICK_PERIOD_MS);
+	}
+}
+
+
+static void balancer_task(void *arg)
 {
     /* Configure parameters of an UART driver,
      * communication pins and install the driver */
@@ -57,8 +121,6 @@ static void echo_task(void *arg)
 
     int intr_alloc_flags = 0;
     int i = 0;
-
-    uint8_t data[2];
     uint8_t led_state = 0;
     BYTE response_frame[(MAXBYTES+6)*TOTALBOARDS];
 
@@ -66,6 +128,7 @@ static void echo_task(void *arg)
     intr_alloc_flags = ESP_INTR_FLAG_IRAM;
 #endif
 
+    xSemaphoreTake(xBinSema,portMAX_DELAY);
     ESP_ERROR_CHECK(uart_driver_install(ECHO_UART_PORT_NUM, BUF_SIZE * 2, 0, 0, NULL, intr_alloc_flags));
     ESP_ERROR_CHECK(uart_param_config(ECHO_UART_PORT_NUM, &uart_config));
     ESP_ERROR_CHECK(uart_set_pin(ECHO_UART_PORT_NUM, ECHO_TEST_TXD, ECHO_TEST_RXD, ECHO_TEST_RTS, ECHO_TEST_CTS));
@@ -83,32 +146,6 @@ static void echo_task(void *arg)
 
 	balancer_wake();
 	memset(response_frame, 0, sizeof(response_frame));
-	i2c_master_init();
-
-	while(1)
-	{
-		gpio_set_level(LED_GPIO, led_state);
-		led_state = ~led_state;
-		if(maxim_max1726x_check_por())
-			printf("Power on reset\n");
-		else
-			printf("No power on reset\n");
-
-		printf("dev name = 0x%x \n", maxim_max1726x_get_devname());
-
-		maxim_max1726x_wait_dnr();
-
-		maxim_max1726x_initialize_ez_config();
-		//maxim_max1726x_initialize_full_ini();
-		if (maxim_max1726x_clear_por())
-			printf("Readback error!! \n");
-		else
-			printf("Readback Success! \n");
-
-
-		vTaskDelay(100 / portTICK_PERIOD_MS);
-	}
-
 	InitDevices();
 
 	WriteReg(0, CELL_ADC_CONF2, 0x08, 1, FRMWRT_SGL_NR);    //set continuous ADC conversions, and set minimum conversion interval
@@ -127,6 +164,7 @@ static void echo_task(void *arg)
 	// resume_cell_balancing();
 
 	delayus(3*TOTALBOARDS+901);                             //3us of re-clocking delay per board + 901us waiting for first ADC conversion to complete
+	xSemaphoreGive(xBinSema);
 
     while (1) {
     	vTaskDelay(1000 / portTICK_PERIOD_MS);
@@ -183,5 +221,7 @@ static void echo_task(void *arg)
 
 void app_main(void)
 {
-    xTaskCreate(echo_task, "uart_echo_task", ECHO_TASK_STACK_SIZE, NULL, 10, NULL);
+	vSemaphoreCreateBinary(xBinSema);
+    xTaskCreate(balancer_task, "balancer_task", ECHO_TASK_STACK_SIZE, NULL, 10, NULL);
+    xTaskCreate(fule_gauge_task, "fule_gauge_task", ECHO_TASK_STACK_SIZE, NULL, 10, NULL);
 }
