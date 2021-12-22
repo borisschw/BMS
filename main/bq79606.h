@@ -31,8 +31,18 @@
 #include <stdint.h>
 #include <unistd.h>
 
+#define FRAME_DATA_OFFSET 4
+#define FRAME_CRC_SIZE 2
+#define NUM_OF_BYTES_IN_REG 2
+#define FRAME_OVERHEAD_SIZE (FRAME_DATA_OFFSET + FRAME_CRC_SIZE)
+
+#define CHARGE_EN_GPIO 1
 #define WAKEUP_GPIO 2
+#define DOCKING_GPIO 5
 #define LED_GPIO 16
+
+
+
 #define ECHO_UART_PORT_NUM      (CONFIG_EXAMPLE_UART_PORT_NUM)
 #define ECHO_UART_BAUD_RATE     1000000//(CONFIG_EXAMPLE_UART_BAUD_RATE)
 #define ECHO_TASK_STACK_SIZE    (CONFIG_EXAMPLE_TASK_STACK_SIZE)
@@ -562,14 +572,14 @@ int  ReadFrameReq(BYTE bID, uint16_t wAddr, BYTE bByteToReturn,BYTE bWriteType);
 void delayms(uint16_t ms);
 void delayus(uint16_t us);
 float Complement(uint16_t rawData, float multiplier);
-void InitDevices();
+void init_balancer();
 void print_frame(uint8_t *data , int size);
 int set_balance_duty_cycle( BYTE units, BYTE duty, BYTE fltstop, BYTE seq);
 int set_cell_balancing_time(int cell_num, BYTE units, BYTE time);
+void configure_bal_policy();
 int cell_adc_measurment_start();
-int enable_cell_balancing();
-int pause_cell_balancing();
-int resume_cell_balancing();
+int stop_cell_balancing();
+int start_cell_balancing();
 
 #endif /* BQ79606_H_ */
 //EOF

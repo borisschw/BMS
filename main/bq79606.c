@@ -36,6 +36,11 @@ int nCurrentBoard = 0;
 
 void balancer_wake()
 {
+	/* Configure wakeup pin */
+	gpio_reset_pin(WAKEUP_GPIO);
+	/* Set the GPIO as a push/pull output */
+	gpio_set_direction(WAKEUP_GPIO, GPIO_MODE_OUTPUT);
+
 	gpio_set_level(WAKEUP_GPIO, 1);
 	usleep(1000);
 	gpio_set_level(WAKEUP_GPIO, 0);
@@ -314,7 +319,7 @@ float Complement(uint16_t rawData, float multiplier)
     return -1*(~rawData+1)*multiplier;
 }
 
-void InitDevices() {
+void init_balancer() {
     /*******Optional examples of some initialization functions*****/
 
     delayms(1);
@@ -467,20 +472,30 @@ int cell_adc_measurment_start()
     return WriteReg(0, CONTROL2, 0x01, 1, FRMWRT_SGL_NR);          //CELL_ADC_GO = 1
 }
 
-int enable_cell_balancing()
-{
-    return WriteReg(0, CONTROL2, 0x20, 1, FRMWRT_SGL_NR);
-}
 
-int pause_cell_balancing()
+int stop_cell_balancing()
 {
     return WriteReg(0, CB_SW_EN, 0x40, 1, FRMWRT_SGL_NR);
 }
 
-int resume_cell_balancing()
+int start_cell_balancing()
 {
+	int ret = 0;
     WriteReg(0, CB_SW_EN, 0xBF, 1, FRMWRT_SGL_NR);
-    return enable_cell_balancing();
+    ret = WriteReg(0, CONTROL2, 0x30, 1, FRMWRT_SGL_NR);
+    delayus(200);
+    return ret;
+}
+
+void configure_bal_policy()
+{
+	set_balance_duty_cycle(SEC, BAL_DUTY_2, FLTCONTINUE, ODDS_THEN_EVENS);
+	set_cell_balancing_time(1, SEC, 10);
+	set_cell_balancing_time(2, SEC, 10);
+	set_cell_balancing_time(3, SEC, 10);
+	set_cell_balancing_time(4, SEC, 10);
+	set_cell_balancing_time(5, SEC, 10);
+	set_cell_balancing_time(6, SEC, 10);
 }
 
 
